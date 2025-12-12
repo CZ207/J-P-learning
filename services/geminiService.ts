@@ -1,13 +1,26 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+let ai: GoogleGenAI | null = null;
+
+const getAiClient = () => {
+  if (ai) return ai;
+
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API Key is missing. Please check your environment configuration.");
+  }
+
+  ai = new GoogleGenAI({ apiKey });
+  return ai;
+};
 
 export const sendChatMessage = async (
   message: string, 
   history: { role: 'user' | 'model', parts: [{ text: string }] }[]
 ) => {
   try {
-    const chat = ai.chats.create({
+    const client = getAiClient();
+    const chat = client.chats.create({
       model: 'gemini-2.5-flash',
       config: {
         systemInstruction: `你是一个友好、热情的日语助教，专门辅导大学生陈真（Chen Zhen）备考《大学日语II》期末考试。
@@ -30,8 +43,9 @@ export const sendChatMessage = async (
 
 export const generateIllustration = async (prompt: string): Promise<string | null> => {
   try {
+    const client = getAiClient();
     // Modified prompt for realistic style
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
@@ -55,11 +69,12 @@ export const generateIllustration = async (prompt: string): Promise<string | nul
 
 export const generateExplanation = async (topic: string, type: 'grammar' | 'word'): Promise<string> => {
    try {
+     const client = getAiClient();
      const prompt = type === 'grammar' 
         ? `请用**简体中文**详细解释日语语法点 "${topic}"。内容包括：接续方式、含义、适用场景，并给出3个带有中文翻译和假名注音的例句。请使用 Markdown 格式。`
         : `请用**简体中文**解释日语单词 "${topic}"。内容包括：平假名读音、罗马音、详细中文含义、单词语境（Nuance），以及一个有趣的记忆法。请使用 Markdown 格式。`;
 
-     const response = await ai.models.generateContent({
+     const response = await client.models.generateContent({
        model: 'gemini-2.5-flash',
        contents: prompt
      });
@@ -67,12 +82,13 @@ export const generateExplanation = async (topic: string, type: 'grammar' | 'word
      return response.text || "无法生成解释，请重试。";
    } catch (error) {
      console.error("Explanation Error:", error);
-     return "AI 服务连接失败。";
+     return "AI 服务连接失败或 API Key 未配置。";
    }
 };
 
 export const analyzeSelection = async (text: string): Promise<string> => {
   try {
+    const client = getAiClient();
     const prompt = `请分析以下日语文本片段：
     "${text}"
     
@@ -84,13 +100,13 @@ export const analyzeSelection = async (text: string): Promise<string> => {
     
     请用简体中文回答，Markdown格式，简洁明了。`;
 
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt
     });
 
     return response.text || "无法分析选中文本。";
   } catch (error) {
-    return "AI 服务连接失败。";
+    return "AI 服务连接失败或 API Key 未配置。";
   }
 }
