@@ -1,16 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const sendChatMessage = async (
   message: string, 
   history: { role: 'user' | 'model', parts: [{ text: string }] }[]
 ) => {
-  if (!apiKey) {
-    throw new Error("API Key is missing. Please set REACT_APP_GEMINI_API_KEY.");
-  }
-
   try {
     const chat = ai.chats.create({
       model: 'gemini-2.5-flash',
