@@ -8,7 +8,12 @@
     
     <!-- 环境垫片：防止在非Node环境（如浏览器直接运行）中因访问 process.env 而崩溃 -->
     <script>
-      window.process = window.process || { env: { API_KEY: '' } };
+      // Fallback for API Key if build transform fails
+      window.process = window.process || { 
+        env: { 
+          API_KEY: 'sk-ai-v1-b72fd0128a972d8e27eb81c48d711bdb3785addb01f42e98f610ad686e61bf60' 
+        } 
+      };
     </script>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -74,7 +79,7 @@
     "react-dom/client": "https://esm.sh/react-dom@^19.2.3/client",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.33.0",
+    "@google/genai": "https://esm.sh/@google/genai@0.2.0",
     "vite": "https://esm.sh/vite@^7.2.7",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
     "react-markdown": "https://esm.sh/react-markdown@^10.1.0"

@@ -5,11 +5,17 @@ let ai: GoogleGenAI | null = null;
 const getAiClient = () => {
   if (ai) return ai;
 
-  const apiKey = process.env.API_KEY;
+  // Try standard process.env (replaced by Vite) first, then fallback to window.process (browser shim)
+  const apiKey = process.env.API_KEY || (typeof window !== 'undefined' && (window as any).process?.env?.API_KEY);
+  
   if (!apiKey) {
     throw new Error("API Key is missing. Please check your environment configuration.");
   }
 
+  // Initialize the client. 
+  // Note: If using a custom endpoint (implied by non-standard key formats),
+  // you might need to pass { baseUrl: '...' } in the config.
+  // We strictly follow the provided key.
   ai = new GoogleGenAI({ apiKey });
   return ai;
 };
@@ -36,7 +42,8 @@ export const sendChatMessage = async (
     const result = await chat.sendMessageStream({ message });
     return result;
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    console.error("Gemini Chat API Error:", error);
+    // Rethrow to allow UI to handle it (e.g. show error message)
     throw error;
   }
 };
@@ -62,7 +69,7 @@ export const generateIllustration = async (prompt: string): Promise<string | nul
     }
     return null;
   } catch (error) {
-    console.error("Image Gen Error:", error);
+    console.error("Image Gen API Error:", error);
     return null;
   }
 };
@@ -81,8 +88,8 @@ export const generateExplanation = async (topic: string, type: 'grammar' | 'word
      
      return response.text || "无法生成解释，请重试。";
    } catch (error) {
-     console.error("Explanation Error:", error);
-     return "AI 服务连接失败或 API Key 未配置。";
+     console.error("Explanation API Error:", error);
+     return "AI 服务暂时无法使用，请检查网络或 API Key 设置。";
    }
 };
 
@@ -107,6 +114,7 @@ export const analyzeSelection = async (text: string): Promise<string> => {
 
     return response.text || "无法分析选中文本。";
   } catch (error) {
-    return "AI 服务连接失败或 API Key 未配置。";
+     console.error("Analysis API Error:", error);
+    return "AI 服务暂时无法使用。";
   }
 }

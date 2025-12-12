@@ -638,7 +638,9 @@ const AIChat: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const history = messages.map(m => ({
+      // Exclude the initial welcome message from the history sent to API
+      // to comply with "History must start with a user turn" requirement.
+      const history = messages.slice(1).map(m => ({
         role: m.role,
         parts: [{ text: m.text }]
       }));
