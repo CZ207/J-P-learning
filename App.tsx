@@ -634,35 +634,82 @@ const AIChat: React.FC = () => {
     if (!input.trim() || isLoading) return;
     const userMsg = input;
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    
+    // Add user message to UI immediately
+    const updatedMessages = [...messages, { role: 'user', text: userMsg }];
+    setMessages(updatedMessages as any);
     setIsLoading(true);
 
     try {
-      // Exclude the initial welcome message from the history sent to API
-      // to comply with "History must start with a user turn" requirement.
-      const history = messages.slice(1).map(m => ({
-        role: m.role,
-        parts: [{ text: m.text }]
-      }));
+      // Robust History Sanitization for Gemini API (0.2.0)
+      // 1. Filter out the initial greeting (only needed for context if useful, but 'model' first is invalid for sendMessageStream usually, though `history` param allows it)
+      // 2. IMPORTANT: History must alternate User -> Model -> User.
+      // 3. Remove any empty messages.
       
-      const streamResult = await sendChatMessage(userMsg, history);
+      const historySource = updatedMessages.slice(1, -1); // Exclude initial welcome (index 0) AND current user message (last index)
       
-      let fullResponse = "";
+      const validHistory: { role: 'user' | 'model', parts: [{ text: string }] }[] = [];
+      let nextExpectedRole = 'user';
+
+      for (const msg of historySource) {
+        if (!msg.text || !msg.text.trim()) continue; // Skip empty
+        
+        // Simple alternation check: only add if it matches expected role
+        if (msg.role === nextExpectedRole) {
+           validHistory.push({
+             role: msg.role as 'user' | 'model',
+             parts: [{ text: msg.text }]
+           });
+           nextExpectedRole = nextExpectedRole === 'user' ? 'model' : 'user';
+        } else {
+           // Mismatch found (e.g. consecutive users or models). 
+           // Strategy: skip this message to try and realign, or just ignore.
+           // For a chat app, usually we just want the valid sequence.
+        }
+      }
+
+      // Note: `sendChatMessage` uses `chats.create({ history })`.
+      // The `history` param MUST NOT include the message we are about to send via `sendMessageStream`.
+      // So `validHistory` constructed above (excluding last user msg) is correct.
+
+      const streamResult = await sendChatMessage(userMsg, validHistory);
+      
+      // Add placeholder for model response
       setMessages(prev => [...prev, { role: 'model', text: "" }]); 
 
+      let fullResponse = "";
       for await (const chunk of streamResult) {
         const text = (chunk as GenerateContentResponse).text;
         if (text) {
            fullResponse += text;
            setMessages(prev => {
              const newArr = [...prev];
-             newArr[newArr.length - 1].text = fullResponse;
+             // Safely update the last message
+             const lastIdx = newArr.length - 1;
+             if (newArr[lastIdx]) {
+                newArr[lastIdx] = { ...newArr[lastIdx], text: fullResponse };
+             }
              return newArr;
            });
         }
       }
     } catch (e) {
-      setMessages(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error connecting to the AI service. Please check your API key." }]);
+      console.error("Chat Error:", e);
+      // Avoid adding duplicate error messages if the last one is already an error/empty model placeholder
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        const errorMsg = "抱歉，我好像断线了。请检查网络或稍后再试。 (API Error)";
+        
+        // If the last message was the empty model placeholder we added before streaming...
+        if (last.role === 'model' && last.text === "") {
+          const newArr = [...prev];
+          newArr[newArr.length - 1].text = errorMsg;
+          return newArr;
+        }
+        
+        // Otherwise append new error message
+        return [...prev, { role: 'model', text: errorMsg }];
+      });
     } finally {
       setIsLoading(false);
     }
