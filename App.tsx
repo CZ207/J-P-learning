@@ -4,7 +4,7 @@ import { Lesson, ViewState, Word, UserProgress } from './types';
 import { Button, Card, Header, TabBar } from './components/UI';
 import { sendChatMessage, generateIllustration, generateExplanation, analyzeSelection } from './services/geminiService';
 import { GenerateContentResponse } from '@google/genai';
-import ReactMarkdown from 'https://esm.sh/react-markdown@9.0.1';
+import ReactMarkdown from 'react-markdown';
 
 // --- Utility: Simple Hepburn Romaji Converter ---
 const toRomaji = (kana: string): string => {
